@@ -14,6 +14,8 @@ defmodule PhoenixChat do
       supervisor(PhoenixChat.Repo, []),
       supervisor(PhoenixChat.Presence, [])
     ]
+    # Ensure that we create :ets table for PhoenixChat.LobbyList
+    PhoenixChat.LobbyList.init
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
     # for other strategies and supported options
