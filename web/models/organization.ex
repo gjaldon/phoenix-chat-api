@@ -1,6 +1,6 @@
 defmodule PhoenixChat.Organization do
   use PhoenixChat.Web, :model
-  alias PhoenixChat.User
+  alias PhoenixChat.{User, Repo}
 
   schema "organizations" do
     field :public_key, :string

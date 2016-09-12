@@ -2,6 +2,7 @@ defmodule PhoenixChat.OrganizationControllerTest do
   use PhoenixChat.ConnCase
 
   alias PhoenixChat.{Organization, Repo}
+  
   @valid_attrs %{website: "http://www.foo.com", owner_id: 1}
   @invalid_attrs %{}
 

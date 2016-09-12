@@ -10,11 +10,11 @@ defmodule PhoenixChat.AdminChannelTest do
   end
 
   test "joining admin:active_users as admin" do
-    LobbyList.insert("foo")
-    LobbyList.insert("bar")
-
+    LobbyList.insert("pub_key", "id1")
+    LobbyList.insert("pub_key", "id2")
+    
     {:ok, %{lobby_list: lobby_list}, _socket} =
-      socket("user_id", %{user_id: 1})
+      socket("user_id", %{user_id: 1, public_key: "pub_key"})
       |> subscribe_and_join(AdminChannel, "admin:active_users")
 
     assert length(lobby_list) == 2
@@ -25,7 +25,7 @@ defmodule PhoenixChat.AdminChannelTest do
 
   test "non-admin users do not receive the 'lobby_list' event on join" do
     {:ok, %{lobby_list: _}, _} =
-      socket("user_id", %{user_id: nil, uuid: 5})
+      socket("user_id", %{user_id: nil, uuid: 5, public_key: "pub_key"})
       |> subscribe_and_join(AdminChannel, "admin:active_users")
 
     refute_push "lobby_list", %{}
