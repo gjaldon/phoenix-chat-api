@@ -17,3 +17,9 @@ config :phoenix_chat, PhoenixChat.Repo,
   database: "phoenix_chat_test",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox
+
+config :phoenix_chat, PhoenixChat.Mailer,
+  adapter: Bamboo.TestAdapter
+
+config :comeonin, :bcrypt_log_rounds, 4
+config :comeonin, :pbkdf2_rounds, 1

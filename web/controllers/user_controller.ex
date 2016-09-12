@@ -1,7 +1,7 @@
 defmodule PhoenixChat.UserController do
   use PhoenixChat.Web, :controller
 
-  alias PhoenixChat.User
+alias PhoenixChat.{Email, Mailer, User}
 
   def create(conn, %{"user" => user_params}) do
     changeset = User.registration_changeset(%User{}, user_params)
@@ -9,6 +9,8 @@ defmodule PhoenixChat.UserController do
     case Repo.insert(changeset) do
       {:ok, user} ->
         {:ok, token, _claims} = Guardian.encode_and_sign(user, :token)
+
+        send_welcome_email(user)
 
         conn
         |> put_status(:created)
@@ -19,7 +21,7 @@ defmodule PhoenixChat.UserController do
         |> render(PhoenixChat.ChangesetView, "error.json", changeset: changeset)
     end
   end
-  
+
   def update(conn, %{"id" => id, "user" => user_params}) do
     user = Repo.get!(User, id)
     changeset = User.changeset(user, user_params)
@@ -42,5 +44,11 @@ defmodule PhoenixChat.UserController do
     Repo.delete!(user)
 
     send_resp(conn, :no_content, "")
+  end
+
+  defp send_welcome_email(user) do
+    user
+    |> Email.welcome_email
+    |> Mailer.deliver_later
   end
 end
