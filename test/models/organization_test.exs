@@ -1,10 +1,15 @@
 defmodule PhoenixChat.OrganizationTest do
   use PhoenixChat.ModelCase
 
-  alias PhoenixChat.Organization
+  alias PhoenixChat.{Organization, ConnCase}
 
-  @valid_attrs %{website: "foo.com"}
+  @valid_attrs %{website: "foo.com", owner_id: 1}
   @invalid_attrs %{}
+
+  setup do
+    user = ConnCase.create_user!(%{id: 1})
+    {:ok, %{user: user}}
+  end
 
   test "changeset with valid attributes" do
     changeset = Organization.changeset(%Organization{}, @valid_attrs)
@@ -22,16 +27,6 @@ defmodule PhoenixChat.OrganizationTest do
     assert {:website, {"has already been taken", []}} in changeset.errors
   end
 
-  test "changeset must have a unique public key generated on create" do
-    changeset = Organization.changeset(%Organization{}, %{website: "http://foo.com"})
-    org1 = Repo.insert! changeset
-
-    changeset = Organization.changeset(%Organization{}, %{website: "http://bar.com"})
-    org2 = Repo.insert! changeset
-
-    assert org1.public_key != org2.public_key
-  end
-
   test "changeset's website must be a valid url" do
     some_invalid_urls = ["test this", "???", "...", ".www.foo.bar.", "foo.", "ftp://foo.com"]
 
@@ -44,9 +39,50 @@ defmodule PhoenixChat.OrganizationTest do
     some_valid_urls = ~w(foo.com www.foo.com http://foo.com https://foo.com?test=foo foo.com?test=bar)
 
     for valid_url <- some_valid_urls do
-      changeset = Organization.changeset(%Organization{}, %{website: valid_url})
+      changeset = Organization.changeset(%Organization{}, %{website: valid_url, owner_id: 1})
 
       assert changeset.valid?
     end
+  end
+
+  test "organization belongs to owner", %{user: user} do
+    org = Repo.insert! %Organization{website: "foo.com", owner_id: user.id, public_key: "test"}
+          |> Repo.preload(:owner)
+
+    assert org.owner == user
+  end
+
+  test "organization can have one admin" do
+    org  = Repo.insert! %Organization{website: "foo.com", public_key: "test"}
+    user = ConnCase.create_user!(%{username: "bar", email: "bar@foo.com", organization_id: org.id})
+
+    org = Repo.preload(org, :admins)
+
+    assert org.admins == [user]
+  end
+
+  test "organization has many admins" do
+    org = Repo.insert! %Organization{website: "foo.com", public_key: "test"}
+    user = ConnCase.create_user!(%{username: "bar", email: "bar@foo.com", organization_id: org.id})
+    user2 = ConnCase.create_user!(%{username: "baz", email: "baz@qux.com", organization_id: org.id})
+
+    org = Repo.preload(org, :admins)
+
+    assert org.admins == [user, user2]
+  end
+
+  test "changeset must have a unique public key generated on create" do
+    changeset = Organization.changeset(%Organization{}, @valid_attrs)
+    org1 = Repo.insert! changeset
+
+    changeset = Organization.changeset(%Organization{}, %{website: "http://bar.com", owner_id: 1})
+    org2 = Repo.insert! changeset
+
+    assert org1.public_key != org2.public_key
+  end
+
+  test "owner changeset does not require an owner id" do
+    changeset = Organization.owner_changeset(%Organization{}, %{website: "foo.com"})
+    assert changeset.valid?
   end
 end

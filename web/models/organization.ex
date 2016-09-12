@@ -1,10 +1,13 @@
 defmodule PhoenixChat.Organization do
   use PhoenixChat.Web, :model
+  alias PhoenixChat.User
 
   schema "organizations" do
     field :public_key, :string
     field :website, :string
-    belongs_to :owner, PhoenixChat.Owner
+
+    has_many  :admins, User, foreign_key: :organization_id
+    belongs_to :owner, User, foreign_key: :owner_id
 
     timestamps()
   end
@@ -12,16 +15,39 @@ defmodule PhoenixChat.Organization do
   @doc """
   Builds a changeset based on the `struct` and `params`.
   """
-  def changeset(struct, params \\ %{}) do
+  def changeset(struct, params \\ %{}, association \\ false) do
+    required_fields = if association, do: [:website], else: [:website, :owner_id]
+
     struct
-    |> cast(params, [:website])
-    |> validate_required([:website])
+    |> cast(params, [:website, :owner_id])
+    |> validate_required(required_fields)
+    |> validate_change(:owner_id, &validate_new_owner_admin/2)
     |> update_change(:website, &set_uri_scheme/1)
     |> validate_change(:website, &validate_website/2)
     |> unique_constraint(:website)
     |> put_public_key()
     |> unique_constraint(:public_key)
   end
+
+  defp validate_new_owner_admin(:owner_id, owner_id) do
+    user = Repo.get! User, owner_id
+    org = Repo.preload(user, :organization).organization || Repo.preload(user, :owned_organization).owned_organization
+
+    if org do
+      [owner_id: "user is owner or admin of existing organiation"]
+    else
+      []
+    end
+  end
+
+  @doc """
+  User for `cast_assoc/2` in `User.registration_changeset/2`. It's only difference
+  from `changeset/3` is that it does not require an `owner_id`.
+  """
+  def owner_changeset(struct, params \\ %{}) do
+    changeset(struct, params, true)
+  end
+
 
   defp put_public_key(%{data: data} = changeset) do
     if changeset.valid? && !data.id do

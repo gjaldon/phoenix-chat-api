@@ -1,11 +1,15 @@
 defmodule PhoenixChat.User do
   use PhoenixChat.Web, :model
+  alias PhoenixChat.Organization
 
   schema "users" do
     field :email, :string
     field :encrypted_password, :string
     field :username, :string
     field :password, :string, virtual: true
+
+    has_one :owned_organization, Organization, foreign_key: :owner_id
+    belongs_to :organization, Organization
 
     timestamps
   end
@@ -28,6 +32,7 @@ defmodule PhoenixChat.User do
     model
     |> changeset(params)
     |> cast(params, ~w(password), [])
+    |> cast_assoc(:owned_organization, with: &Organization.owner_changeset/2)
     |> validate_length(:password, min: 6, max: 100)
     |> put_encrypted_pw
   end

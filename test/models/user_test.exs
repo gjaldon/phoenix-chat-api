@@ -1,7 +1,7 @@
 defmodule PhoenixChat.UserTest do
   use PhoenixChat.ModelCase
 
-  alias PhoenixChat.User
+  alias PhoenixChat.{User, Organization, ConnCase}
 
   @valid_attrs %{email: "foo@bar.com", encrypted_password: "some content", username: "some content"}
   @invalid_attrs %{}
@@ -52,11 +52,34 @@ defmodule PhoenixChat.UserTest do
     changeset = User.registration_changeset(%User{}, valid_attrs)
     assert changeset.valid?
     assert get_change(changeset, :encrypted_password)
-  end
 
+    # Test that a new owned_organization is created properly if it is provided
+    valid_attrs = %{owned_organization: %{website: "http://www.foo.com"}}
+    changeset = User.registration_changeset(changeset, valid_attrs)
+    assert changeset.valid?
+    assert get_change(changeset, :owned_organization).changes.website == "http://www.foo.com"
+    assert get_change(changeset, :owned_organization).changes.public_key
+  end
+  
   test "registration changeset with invalid password length" do
     long_password = String.duplicate "p", 101
     %{errors: errors} = User.registration_changeset(%User{}, %{password: long_password})
     assert {:password, {"should be at most %{count} character(s)", [count: 100]}} in errors
+  end
+
+  test "user can own an organization" do
+    user = ConnCase.create_user!
+    org  = Repo.insert! %Organization{website: "foo.com", owner_id: user.id, public_key: "test"}
+    user = Repo.preload(user, :owned_organization)
+
+    assert user.owned_organization == org
+  end
+
+  test "user belongs to organization" do
+    org  = Repo.insert! %Organization{website: "foo.com", public_key: "test"}
+    user = ConnCase.create_user!(%{organization_id: org.id})
+           |> Repo.preload(:organization)
+
+    assert user.organization == org
   end
 end
