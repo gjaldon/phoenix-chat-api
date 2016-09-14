@@ -1,11 +1,11 @@
 defmodule PhoenixChat.AdminChannel do
   @moduledoc """
-  The channel used to give the administrator access to all users.
+  The channel used to give the administrator access to all users.
   """
 
   use PhoenixChat.Web, :channel
 
-  alias PhoenixChat.{Presence, LobbyList}
+  alias PhoenixChat.{Presence, Repo, AnonymousUser}
 
   intercept ~w(lobby_list)
 
@@ -17,7 +17,10 @@ defmodule PhoenixChat.AdminChannel do
       send(self, :after_join)
 
       public_key = socket.assigns.public_key
-      lobby_list = LobbyList.lookup(public_key)
+      lobby_list = public_key
+        |> AnonymousUser.by_public_key
+        |> Repo.all
+        |> AnonymousUser.json_serialize
       {:ok, %{lobby_list: lobby_list}, socket}
     end)
   end
@@ -27,14 +30,19 @@ defmodule PhoenixChat.AdminChannel do
   """
   def handle_info(:after_join, socket) do
     %{assigns: assigns} = socket
+
+    # Record anonymous user if not yet recorded so we can track the last message
+    # sent and when their chat channel was last viewed by an admin.
+    uuid = assigns[:uuid]
+    if uuid && !Repo.get(AnonymousUser, uuid) do
+      params = %{public_key: assigns.public_key, id: uuid}
+      changeset = AnonymousUser.changeset(%AnonymousUser{}, params)
+      Repo.insert!(changeset)
+    end
+
     id = assigns.user_id || assigns.uuid
-
     # Keep track of rooms to be displayed to admins
-    fake_name = Faker.Color.name() <> Faker.Company.buzzword()
-    fake_avatar = Faker.Avatar.image_url(25, 25)
-    LobbyList.insert(assigns.public_key, id, fake_name, fake_avatar)
     broadcast! socket, "lobby_list", %{uuid: id, public_key: assigns.public_key}
-
     # Keep track of users that are online
     push socket, "presence_state", Presence.list(socket)
     {:ok, _} = Presence.track(socket, id, %{
