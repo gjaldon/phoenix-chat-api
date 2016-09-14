@@ -23,14 +23,16 @@ defmodule PhoenixChat.AdminChannel do
   end
 
   @doc """
-  Handles the `:after_join` event and tracks the presence of the socket that has subscribed to the `admin:active_users` topic.
+  Handles the `:after_join` event and tracks the presence of the socket that has subscribed to the `admin:active_users` topic.
   """
   def handle_info(:after_join, socket) do
     %{assigns: assigns} = socket
     id = assigns.user_id || assigns.uuid
 
     # Keep track of rooms to be displayed to admins
-    LobbyList.insert(assigns.public_key, id)
+    fake_name = Faker.Color.name() <> Faker.Company.buzzword()
+    fake_avatar = Faker.Avatar.image_url(25, 25)
+    LobbyList.insert(assigns.public_key, id, fake_name, fake_avatar)
     broadcast! socket, "lobby_list", %{uuid: id, public_key: assigns.public_key}
 
     # Keep track of users that are online

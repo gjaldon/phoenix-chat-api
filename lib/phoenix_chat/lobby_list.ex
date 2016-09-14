@@ -7,21 +7,23 @@ defmodule PhoenixChat.LobbyList do
   store multiple values with the same keys.
   """
   def init do
-    opts = [:public, :named_table, {:write_concurrency, true}, {:read_concurrency, false}, :bag]
+    opts = [:public, :named_table, {:write_concurrency, true}, {:read_concurrency, false}, :set]
     :ets.new(@table, opts)
   end
 
-  def insert(public_key, uuid) do
-    :ets.insert(@table, {public_key, uuid})
+  def insert(public_key, uuid, fake_name, fake_avatar) do
+    :ets.insert(@table, {uuid, public_key, fake_name, fake_avatar})
   end
 
-  def delete(public_key) do
-    :ets.delete(@table, public_key)
+  def delete(uuid) do
+    :ets.delete(@table, uuid)
   end
 
   def lookup(public_key) do
     @table
-    |> :ets.lookup(public_key)
-    |> Enum.map(fn {_, uuid} -> uuid end)
+    |> :ets.match({:'$1', public_key, :'$2', :'$3'})
+    |> Enum.map(fn [uuid, fake_name, fake_avatar] ->
+      %{id: uuid, name: fake_name, avatar: fake_avatar}
+    end)
   end
 end
