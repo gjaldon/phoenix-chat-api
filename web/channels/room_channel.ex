@@ -6,6 +6,7 @@ defmodule PhoenixChat.RoomChannel do
 
   def join("room:" <> room_id, payload, socket) do
     authorize(payload, fn ->
+      update_last_viewed_at(payload["previousRoom"])
       messages = room_id
         |> Message.latest_room_messages
         |> Repo.all
@@ -53,5 +54,13 @@ defmodule PhoenixChat.RoomChannel do
       Repo.update!(AnonymousUser.last_message_changeset(user, user_params))
       Repo.insert!(Message.changeset(%Message{}, msg_params))
     end)
+  end
+
+  defp update_last_viewed_at(nil), do: nil #noop
+
+  defp update_last_viewed_at(uuid) do
+    user = Repo.get(AnonymousUser, uuid)
+    changeset = AnonymousUser.last_viewed_changeset(user)
+    Repo.update!(changeset)
   end
 end

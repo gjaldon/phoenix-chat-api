@@ -20,34 +20,17 @@ defmodule PhoenixChat.AdminChannel do
       lobby_list = public_key
         |> AnonymousUser.by_public_key
         |> Repo.all
-        |> AnonymousUser.json_serialize
+        |> user_payload
       {:ok, %{lobby_list: lobby_list}, socket}
     end)
   end
 
   @doc """
-  Handles the `:after_join` event and tracks the presence of the socket that has subscribed to the `admin:active_users` topic.
+  Handles the `:after_join` event and tracks the presence of the socket that has
+  subscribed to the `admin:active_users` topic.
   """
   def handle_info(:after_join, socket) do
-    %{assigns: assigns} = socket
-
-    # Record anonymous user if not yet recorded so we can track the last message
-    # sent and when their chat channel was last viewed by an admin.
-    uuid = assigns[:uuid]
-    if uuid && !Repo.get(AnonymousUser, uuid) do
-      params = %{public_key: assigns.public_key, id: uuid}
-      changeset = AnonymousUser.changeset(%AnonymousUser{}, params)
-      Repo.insert!(changeset)
-    end
-
-    id = assigns.user_id || assigns.uuid
-    # Keep track of rooms to be displayed to admins
-    broadcast! socket, "lobby_list", %{uuid: id, public_key: assigns.public_key}
-    # Keep track of users that are online
-    push socket, "presence_state", Presence.list(socket)
-    {:ok, _} = Presence.track(socket, id, %{
-        online_at: inspect(System.system_time(:seconds))
-      })
+    track_presence(socket, socket.assigns)
     {:noreply, socket}
   end
 
@@ -60,5 +43,43 @@ defmodule PhoenixChat.AdminChannel do
       push socket, "lobby_list", payload
     end
     {:noreply, socket}
+  end
+
+  defp track_presence(socket, %{uuid: uuid} = assigns) do
+    # Record anonymous user if not yet recorded so we can track the last message
+    # sent and when their chat channel was last viewed by an admin.
+    user = if user = uuid && Repo.get(AnonymousUser, uuid) do
+      user
+    else
+      params = %{public_key: assigns.public_key, id: uuid}
+      changeset = AnonymousUser.changeset(%AnonymousUser{}, params)
+      Repo.insert!(changeset)
+    end
+
+    payload = user_payload(user)
+    # Keep track of rooms to be displayed to admins
+    broadcast! socket, "lobby_list", payload
+    # Keep track of users that are online (not keepin track of admin presence)
+    push socket, "presence_state", Presence.list(socket)
+    {:ok, _} = Presence.track(socket, uuid, %{
+      online_at: inspect(System.system_time(:seconds))
+    })
+  end
+
+  # Noop when user is not anonymous (has no uuid)
+  defp track_presence(_socket, _), do: nil #noop
+
+  defp user_payload(list) when is_list(list) do
+    Enum.map(list, &user_payload/1)
+  end
+
+  defp user_payload(user) do
+    %{name: user.name,
+      avatar: user.avatar,
+      id: user.id,
+      public_key: user.public_key,
+      last_message: user.last_message,
+      last_message_sent_at: user.last_message_sent_at,
+      last_viewed_by_admin_at: user.last_viewed_by_admin_at}
   end
 end

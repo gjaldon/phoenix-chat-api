@@ -27,21 +27,16 @@ defmodule PhoenixChat.AnonymousUser do
     |> cast(params, ~w(last_message last_message_sent_at), [])
   end
 
+  def last_viewed_changeset(model) do
+    params = %{last_viewed_by_admin_at: System.system_time(:milliseconds)}
+    model
+    |> cast(params, ~w(last_viewed_by_admin_at), [])
+  end
+
   def by_public_key(public_key, limit \\ 20) do
     from u in __MODULE__,
       where: u.public_key == ^public_key,
       limit: ^limit
-  end
-
-  def json_serialize(list) do
-    Enum.map(list, fn user ->
-      %{name: user.name,
-        avatar: user.avatar,
-        id: user.id,
-        last_message: user.last_message,
-        last_message_sent_at: user.last_message_sent_at,
-        last_viewed_by_admin_at: user.last_viewed_by_admin_at}
-    end)
   end
 
   defp put_name(changeset) do
