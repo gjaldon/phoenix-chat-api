@@ -1,6 +1,5 @@
 defmodule PhoenixChat.AnonymousUser do
   use PhoenixChat.Web, :model
-  alias PhoenixChat.Organization
 
   @primary_key {:id, :binary_id, autogenerate: false}
   @foreign_key_type :binary_id
@@ -10,8 +9,8 @@ defmodule PhoenixChat.AnonymousUser do
     field :avatar
     field :public_key
     field :last_message
-    field :last_viewed_by_admin_at, :integer
-    field :last_message_sent_at, :integer
+    field :last_viewed_by_admin_at, PhoenixChat.DateTime
+    field :last_message_sent_at, PhoenixChat.DateTime
 
     timestamps
   end
@@ -21,6 +20,11 @@ defmodule PhoenixChat.AnonymousUser do
     |> cast(params, ~w(public_key id), ~w())
     |> put_avatar
     |> put_name
+  end
+
+  def last_message_changeset(model, params \\ :empty) do
+    model
+    |> cast(params, ~w(last_message last_message_sent_at), [])
   end
 
   def by_public_key(public_key, limit \\ 20) do

@@ -7,8 +7,8 @@ defmodule PhoenixChat.Repo.Migrations.CreateAnonymousUsers do
       add :name, :string
       add :avatar, :string
       add :public_key, :string
-      add :last_viewed_by_admin_at, :integer
-      add :last_message_sent_at, :integer
+      add :last_viewed_by_admin_at, :datetime
+      add :last_message_sent_at, :datetime
       add :last_message, :string
 
       timestamps

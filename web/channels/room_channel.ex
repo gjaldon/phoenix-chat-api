@@ -2,7 +2,7 @@ defmodule PhoenixChat.RoomChannel do
   use PhoenixChat.Web, :channel
   require Logger
 
-  alias PhoenixChat.{Message, Repo}
+  alias PhoenixChat.{Message, Repo, AnonymousUser}
 
   def join("room:" <> room_id, payload, socket) do
     authorize(payload, fn ->
@@ -16,21 +16,19 @@ defmodule PhoenixChat.RoomChannel do
   end
 
   defp message_payload(message) do
-    from = message.user_id || message.from
+    message = Repo.preload(message, :anonymous_user)
+    anonymous_user = message.anonymous_user
+    from = message.user_id || anonymous_user.name
     %{body: message.body,
       timestamp: message.timestamp,
       room: message.room,
       from: from,
+      uuid: anonymous_user && anonymous_user.id,
       id: message.id}
   end
 
   def handle_in("message", payload, socket) do
-    payload = payload
-      |> Map.put("user_id", socket.assigns.user_id)
-      |> Map.put("from", socket.assigns[:uuid])
-    changeset = Message.changeset(%Message{}, payload)
-
-    case Repo.insert(changeset) do
+    case record_message(socket, payload) do
       {:ok, message} ->
         payload = message_payload(message)
         broadcast! socket, "message", payload
@@ -38,5 +36,22 @@ defmodule PhoenixChat.RoomChannel do
       {:error, changeset} ->
         {:reply, {:error, %{errors: changeset}}, socket}
     end
+  end
+
+  defp record_message(%{assigns: %{user_id: user_id}}, payload)when not is_nil(user_id) do
+    msg_params = payload |> Map.put("user_id", user_id)
+    changeset = Message.changeset(%Message{}, msg_params)
+    Repo.insert(changeset)
+  end
+
+  defp record_message(%{assigns: %{uuid: uuid}}, payload) when not is_nil(uuid) do
+    msg_params = payload |> Map.put("anonymous_user_id", uuid)
+    user_params =  %{last_message: payload["body"], last_message_sent_at: msg_params["timestamp"]}
+    user = Repo.get(AnonymousUser, uuid)
+
+    Repo.transaction(fn ->
+      Repo.update!(AnonymousUser.last_message_changeset(user, user_params))
+      Repo.insert!(Message.changeset(%Message{}, msg_params))
+    end)
   end
 end
