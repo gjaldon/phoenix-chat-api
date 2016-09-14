@@ -1,1 +1,1 @@
-alias PhoenixChat.{Message, Organization, User, Repo, LobbyList}
+alias PhoenixChat.{Message, Organization, User, Repo, AnonymousUser}
