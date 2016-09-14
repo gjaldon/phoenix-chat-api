@@ -2,7 +2,7 @@ defmodule PhoenixChat.RoomChannel do
   use PhoenixChat.Web, :channel
   require Logger
 
-  alias PhoenixChat.{Message, Repo, AnonymousUser}
+  alias PhoenixChat.{Message, Repo, AnonymousUser, Endpoint, AdminChannel}
 
   def join("room:" <> room_id, payload, socket) do
     authorize(payload, fn ->
@@ -61,6 +61,8 @@ defmodule PhoenixChat.RoomChannel do
   defp update_last_viewed_at(uuid) do
     user = Repo.get(AnonymousUser, uuid)
     changeset = AnonymousUser.last_viewed_changeset(user)
-    Repo.update!(changeset)
+    user = Repo.update!(changeset)
+    PhoenixChat.Endpoint.broadcast_from! self, "admin:active_users",
+      "lobby_list", AdminChannel.user_payload(user)
   end
 end

@@ -45,6 +45,23 @@ defmodule PhoenixChat.AdminChannel do
     {:noreply, socket}
   end
 
+  # Noop when user is not anonymous (has no uuid)
+  defp track_presence(_socket, _), do: nil #noop
+
+  def user_payload(list) when is_list(list) do
+    Enum.map(list, &user_payload/1)
+  end
+
+  def user_payload(user) do
+    %{name: user.name,
+      avatar: user.avatar,
+      id: user.id,
+      public_key: user.public_key,
+      last_message: user.last_message,
+      last_message_sent_at: user.last_message_sent_at,
+      last_viewed_by_admin_at: user.last_viewed_by_admin_at}
+  end
+
   defp track_presence(socket, %{uuid: uuid} = assigns) do
     # Record anonymous user if not yet recorded so we can track the last message
     # sent and when their chat channel was last viewed by an admin.
@@ -64,22 +81,5 @@ defmodule PhoenixChat.AdminChannel do
     {:ok, _} = Presence.track(socket, uuid, %{
       online_at: inspect(System.system_time(:seconds))
     })
-  end
-
-  # Noop when user is not anonymous (has no uuid)
-  defp track_presence(_socket, _), do: nil #noop
-
-  defp user_payload(list) when is_list(list) do
-    Enum.map(list, &user_payload/1)
-  end
-
-  defp user_payload(user) do
-    %{name: user.name,
-      avatar: user.avatar,
-      id: user.id,
-      public_key: user.public_key,
-      last_message: user.last_message,
-      last_message_sent_at: user.last_message_sent_at,
-      last_viewed_by_admin_at: user.last_viewed_by_admin_at}
   end
 end
