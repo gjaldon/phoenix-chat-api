@@ -6,7 +6,9 @@ defmodule PhoenixChat.RoomChannel do
 
   def join("room:" <> room_id, payload, socket) do
     authorize(payload, fn ->
+      record_anonymous_user(socket)
       update_last_viewed_at(payload["previousRoom"])
+      update_last_viewed_at(payload["nextRoom"])
       messages = room_id
         |> Message.latest_room_messages
         |> Repo.all
@@ -18,18 +20,32 @@ defmodule PhoenixChat.RoomChannel do
 
   def handle_in("message", payload, socket) do
     case record_message(socket, payload) do
-      {:ok, %{user: user, message: message}} ->
-        user_payload = AdminChannel.user_payload(user)
-        broadcast! socket, "message", message_payload(message, user)
+      {:ok, %{anonymous_user_id: uuid} = message} when not is_nil(uuid) ->
+        user = Repo.preload(message, :anonymous_user).anonymous_user
+        message_payload = message_payload(message, user)
+        broadcast! socket, "message", message_payload
         Endpoint.broadcast_from! self, "admin:active_users",
-          "lobby_list", user_payload
+          "lobby_list", AdminChannel.user_payload(user)
         Endpoint.broadcast_from! self, "admin:active_users",
-          "notifications", user_payload
+          "notifications", message_payload
       {:ok, message} ->
         broadcast! socket, "message", message_payload(message)
     end
     {:reply, :ok, socket}
   end
+
+  # Record anonymous user if not yet recorded so we can track the last message
+  # sent and when their chat channel was last viewed by an admin.
+  defp record_anonymous_user(%{uuid: uuid} = assigns) do
+    if !Repo.get(AnonymousUser, uuid) do
+      params = %{public_key: assigns.public_key, id: uuid}
+      changeset = AnonymousUser.changeset(%AnonymousUser{}, params)
+      Repo.insert!(changeset)
+    end
+  end
+
+  # We do not need to record signed-up users
+  defp record_anonymous_user(_socket), do: nil #noop
 
   defp record_message(%{assigns: %{user_id: user_id}}, payload)when not is_nil(user_id) do
     msg_params = payload |> Map.put("user_id", user_id)
@@ -79,11 +95,6 @@ defmodule PhoenixChat.RoomChannel do
   defp message_payload(message) do
     message = Repo.preload(message, :anonymous_user)
     user = message.anonymous_user
-    %{body: message.body,
-      timestamp: message.timestamp,
-      room: message.room,
-      from: user.name,
-      uuid: user.id,
-      id: message.id}
+    message_payload(message, user)
   end
 end
