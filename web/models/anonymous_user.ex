@@ -1,6 +1,8 @@
 defmodule PhoenixChat.AnonymousUser do
   use PhoenixChat.Web, :model
 
+  alias PhoenixChat.Message
+
   @primary_key {:id, :binary_id, autogenerate: false}
   @foreign_key_type :binary_id
 
@@ -9,7 +11,7 @@ defmodule PhoenixChat.AnonymousUser do
     field :avatar
     field :public_key
     field :last_viewed_by_admin_at, PhoenixChat.DateTime
-    has_many :messages, PhoenixChat.Message
+    has_many :messages, Message
 
     timestamps
   end
@@ -34,8 +36,12 @@ defmodule PhoenixChat.AnonymousUser do
 
   def by_public_key(public_key, limit \\ 20) do
     from u in __MODULE__,
+      join: m in Message, on: m.anonymous_user_id == u.id,
       where: u.public_key == ^public_key,
-      limit: ^limit
+      limit: ^limit,
+      distinct: u.id,
+      order_by: [desc: m.inserted_at],
+      select: {u, m}
   end
 
   defp put_name(changeset) do

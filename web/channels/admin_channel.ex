@@ -5,7 +5,8 @@ defmodule PhoenixChat.AdminChannel do
 
   use PhoenixChat.Web, :channel
 
-  alias PhoenixChat.{Presence, Repo, AnonymousUser}
+  alias PhoenixChat.{Presence, Repo, AnonymousUser, Message}
+  require Logger
 
   intercept ~w(lobby_list)
 
@@ -49,12 +50,19 @@ defmodule PhoenixChat.AdminChannel do
     Enum.map(list, &user_payload/1)
   end
 
-  def user_payload(user) do
+  def user_payload({user, message}) do
     %{name: user.name,
       avatar: user.avatar,
       id: user.id,
       public_key: user.public_key,
-      last_viewed_by_admin_at: user.last_viewed_by_admin_at}
+      last_viewed_by_admin_at: user.last_viewed_by_admin_at,
+      last_message: message && message.body,
+      last_message_sent_at: message && message.inserted_at}
+  end
+
+  def user_payload(user) do
+    message = Message.latest_room_messages(user.id, 1) |> Repo.one
+    user_payload({user, message})
   end
 
   defp track_presence(socket, %{uuid: uuid} = assigns) do
