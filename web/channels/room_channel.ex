@@ -55,14 +55,7 @@ defmodule PhoenixChat.RoomChannel do
 
   defp record_message(%{assigns: %{uuid: uuid}}, payload) when not is_nil(uuid) do
     msg_params = payload |> Map.put("anonymous_user_id", uuid)
-    user_params =  %{last_message: payload["body"], last_message_sent_at: msg_params["timestamp"]}
-    user = Repo.get(AnonymousUser, uuid)
-
-    Repo.transaction(fn ->
-      user = Repo.update!(AnonymousUser.last_message_changeset(user, user_params))
-      msg = Repo.insert!(Message.changeset(%Message{}, msg_params))
-      %{user: user, message: msg}
-    end)
+    Repo.insert(Message.changeset(%Message{}, msg_params))
   end
 
   defp update_last_viewed_at(nil), do: nil #noop

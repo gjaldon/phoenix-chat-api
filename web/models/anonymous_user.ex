@@ -8,9 +8,8 @@ defmodule PhoenixChat.AnonymousUser do
     field :name
     field :avatar
     field :public_key
-    field :last_message
     field :last_viewed_by_admin_at, PhoenixChat.DateTime
-    field :last_message_sent_at, PhoenixChat.DateTime
+    has_many :messages, PhoenixChat.Message
 
     timestamps
   end

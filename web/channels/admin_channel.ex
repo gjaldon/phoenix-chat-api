@@ -54,8 +54,6 @@ defmodule PhoenixChat.AdminChannel do
       avatar: user.avatar,
       id: user.id,
       public_key: user.public_key,
-      last_message: user.last_message,
-      last_message_sent_at: user.last_message_sent_at,
       last_viewed_by_admin_at: user.last_viewed_by_admin_at}
   end
 
