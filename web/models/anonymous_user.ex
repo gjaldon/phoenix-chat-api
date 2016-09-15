@@ -39,7 +39,7 @@ defmodule PhoenixChat.AnonymousUser do
   end
 
   defp put_name(changeset) do
-    name = (Faker.Color.name <> " " <> Faker.Company.buzzword()) |> String.downcase
+    name = (Faker.Color.fancy_name <> " " <> Faker.Company.buzzword()) |> String.downcase
     changeset
     |> put_change(:name, name)
   end

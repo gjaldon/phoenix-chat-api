@@ -8,7 +8,9 @@ defmodule PhoenixChat.AuthController do
 
   def me(conn, _params) do
     user = Guardian.Plug.current_resource(conn)
-    org = Repo.preload(user, :organization).organization || Repo.preload(user, :owned_organization).owned_organization
+    org = if user do
+      Repo.preload(user, :organization).organization || Repo.preload(user, :owned_organization).owned_organization
+    end
     case org do
       nil -> render(conn, UserView, "show.json", user: user)
       org -> render(conn, UserView, "show.json", user: user, org: org)
